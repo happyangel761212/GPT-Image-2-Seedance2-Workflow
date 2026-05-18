@@ -295,7 +295,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <h1 className="font-bold text-gray-800 text-base leading-none">설문 분석 대시보드</h1>
-              <p className="text-xs text-gray-400 mt-0.5">AI Learning Readiness Survey</p>
+              <p className="text-xs text-gray-400 mt-0.5">AI 학습 준비도 설문</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
