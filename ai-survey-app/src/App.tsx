@@ -6,9 +6,11 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminGuard from './components/AdminGuard';
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 export default function App() {
   return (
-    <Router>
+    <Router basename={BASE}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/survey" element={<SurveyForm />} />
