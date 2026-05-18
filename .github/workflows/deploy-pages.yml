@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/ai-learning-survey-app-TjRHH
-    paths:
-      - 'ai-survey-app/**'
-
   workflow_dispatch:
 
 permissions:
