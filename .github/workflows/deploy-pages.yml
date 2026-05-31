@@ -37,6 +37,9 @@ jobs:
       - name: Copy 404 for SPA routing
         run: cp ai-survey-app/dist/index.html ai-survey-app/dist/404.html
 
+      - name: Copy attendance system
+        run: cp attendance.html ai-survey-app/dist/attendance.html
+
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v3
         with:
