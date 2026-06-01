@@ -826,23 +826,42 @@ function applyAction(action, payload, data) {
 // INIT
 // ============================================================
 async function init() {
-  setSyncStatus('🔄 로딩 중...');
-  appData = await fetchData();
-  state.adminPin = getAdminPin();
-  renderHeader();
-  renderStudentLists();
-  setSyncStatus('');
+  try {
+    setSyncStatus('');
+    let d = null;
+    try { d = getLocalData(); } catch {}
+    // Validate data structure - reset if broken
+    if (!d || !d.sessions || typeof d.sessions.active === 'undefined') {
+      d = defaultData();
+      setLocalData(d);
+    }
+    appData = d;
+    state.adminPin = getAdminPin();
+    // Force badge update immediately
+    const badge = document.getElementById('sessionBadge');
+    if (badge) badge.textContent = `${appData.sessions.active}회차 수업`;
+    renderHeader();
+    renderStudentLists();
+  } catch(e) {
+    // If anything fails, reset to defaults and show ready state
+    appData = defaultData();
+    setLocalData(appData);
+    const badge = document.getElementById('sessionBadge');
+    if (badge) badge.textContent = '1회차 수업';
+    try { renderStudentLists(); } catch {}
+  }
 
-  // Auto-refresh every 30s if check-in is open
   setInterval(async () => {
     if (!appData) return;
     if (appData.sessions && appData.sessions.open) {
-      const fresh = await fetchData();
-      if (fresh) {
-        appData = fresh;
-        renderStudentLists();
-        updateDashboard();
-      }
+      try {
+        const fresh = await fetchData();
+        if (fresh && fresh.sessions) {
+          appData = fresh;
+          renderStudentLists();
+          updateDashboard();
+        }
+      } catch {}
     }
   }, 30000);
 }
@@ -1146,7 +1165,7 @@ function loadAdminData() {
       <td><strong>${i}회차</strong>${isActive?' 🔵':''}</td>
       <td><input class="pwd-edit-input" id="pwd_${i}" value="${s.passwords[i]||\'\'}" maxlength="2" type="tel"></td>
       <td><input type="date" style="border:1px solid #ccc;border-radius:6px;padding:4px 8px;font-size:14px;" id="date_${i}" value="${s.dates&&s.dates[i]||\'\'}"></td>
-      <td>${isActive ? (s.open?'<span style="color:#2e7d32;font-weight:700;">● 진행중</span>':'<span style="color:#c62828;font-weight:700;">● 마감</span>') : ''}</td>
+      <td>${isActive ? (s.open?\'<span style="color:#2e7d32;font-weight:700;">● 진행중</span>\':\'<span style="color:#c62828;font-weight:700;">● 마감</span>\') : \'\' }</td>
     `;
     tbody.appendChild(tr);
   }
