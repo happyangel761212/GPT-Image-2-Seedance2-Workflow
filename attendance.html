@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>부산기계공구조합 AI실무교육 출석시스템</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -1469,7 +1469,11 @@ function changePin() {
 // ============================================================
 // START
 // ============================================================
-window.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 // ESC closes modals
 document.addEventListener('keydown', e => {
