@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>부산기계공구조합 AI실무교육 출석시스템</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -348,7 +348,7 @@ body{
     <div id="countCardLaptop" class="student-count" style="display:none;">
       <div>
         <div class="count-label">💻 노트북반 출석현황</div>
-        <div class="count-num" id="cntNumL">0/23</div>
+        <div class="count-num" id="cntNumL">0/22</div>
         <div class="count-pct" id="cntPctL">출석률 0%</div>
       </div>
       <div style="text-align:right;font-size:38px;">👥</div>
@@ -590,6 +590,9 @@ body{
 <div class="print-section" id="printArea"></div>
 
 <script>
+// ============================================================
+// DATA
+// ============================================================
 const STUDENTS = {
   mobile: [
     {name:"한병무", company:"부산대 25-2"},
@@ -642,10 +645,12 @@ const STUDENTS = {
   ]
 };
 
+// Both classes
 const BOTH_NAMES = new Set([...STUDENTS.mobile.map(s=>s.name)].filter(n=>
   STUDENTS.laptop.find(s=>s.name===n)
 ));
 
+// Positive messages - unique per person
 const MESSAGES = [
   "오늘도 멋지게 출석하셨군요! 배움의 열정이 빛납니다! ✨",
   "꾸준한 출석이 성공의 첫걸음입니다! 정말 대단해요! 💪",
@@ -699,6 +704,9 @@ function getMsgIndex(name) {
   return h % MESSAGES.length;
 }
 
+// ============================================================
+// STATE
+// ============================================================
 const DEFAULT_PASSWORDS = {"1":"47","2":"83","3":"29","4":"61","5":"15","6":"78","7":"34","8":"92","9":"56","10":"73"};
 
 let state = {
@@ -708,8 +716,11 @@ let state = {
   adminPin: '2580',
 };
 
-let appData = null;
+let appData = null; // loaded from storage
 
+// ============================================================
+// API / STORAGE
+// ============================================================
 const API_URL = '/api/attendance';
 const STORAGE_KEY = 'busan_attendance_v1';
 const PIN_KEY = 'busan_admin_pin';
@@ -751,7 +762,7 @@ async function fetchData() {
     const r = await fetch(API_URL, {cache:'no-store'});
     const j = await r.json();
     if (j.ok) {
-      setLocalData(j.data);
+      setLocalData(j.data); // sync to local
       return j.data;
     }
   } catch {}
@@ -762,6 +773,7 @@ async function fetchData() {
 
 async function postAction(action, payload) {
   if (!HAS_API) {
+    // Apply locally
     applyAction(action, payload, appData);
     setLocalData(appData);
     return { ok: true, data: appData };
@@ -779,6 +791,7 @@ async function postAction(action, payload) {
     }
     return j;
   } catch {
+    // fallback local
     applyAction(action, payload, appData);
     setLocalData(appData);
     return { ok: true, data: appData };
@@ -809,6 +822,9 @@ function applyAction(action, payload, data) {
   }
 }
 
+// ============================================================
+// INIT
+// ============================================================
 async function init() {
   setSyncStatus('🔄 로딩 중...');
   appData = await fetchData();
@@ -817,6 +833,7 @@ async function init() {
   renderStudentLists();
   setSyncStatus('');
 
+  // Auto-refresh every 30s if check-in is open
   setInterval(async () => {
     if (!appData) return;
     if (appData.sessions && appData.sessions.open) {
@@ -834,6 +851,9 @@ function setSyncStatus(msg) {
   document.getElementById('syncStatus').textContent = msg;
 }
 
+// ============================================================
+// HEADER RENDER
+// ============================================================
 function renderHeader() {
   if (!appData || !appData.sessions) return;
   const s = appData.sessions;
@@ -852,6 +872,9 @@ function renderHeader() {
   }
 }
 
+// ============================================================
+// PASSWORD CHECK
+// ============================================================
 function checkPassword() {
   const input = document.getElementById('pwdInput').value.trim();
   const errEl = document.getElementById('pwdError');
@@ -889,6 +912,9 @@ function checkPassword() {
   }
 }
 
+// ============================================================
+// CLASS SWITCH
+// ============================================================
 function switchClass(cls) {
   state.currentClass = cls;
   document.getElementById('tabMobile').className = 'tab-btn' + (cls==='mobile'?' active':'');
@@ -896,11 +922,15 @@ function switchClass(cls) {
   document.getElementById('countCardMobile').style.display = cls==='mobile'?'':'none';
   document.getElementById('countCardLaptop').style.display = cls==='laptop'?'':'none';
 
+  const mobileCard = document.querySelector('.card:has(#mobileList)');
   document.querySelector('[id="checkinSection"] .card:nth-child(3)').style.display = cls==='mobile'?'':'none';
   document.getElementById('laptopListCard').style.display = cls==='laptop'?'block':'none';
   document.getElementById('listTitle').textContent = cls==='mobile'?'📋 모바일반 교육생 명단':'📋 노트북반 교육생 명단';
 }
 
+// ============================================================
+// RENDER STUDENT LISTS
+// ============================================================
 function renderStudentLists() {
   if (!appData) return;
   const active = String(appData.sessions.active);
@@ -956,6 +986,9 @@ function formatTimeShort(iso) {
   } catch { return iso; }
 }
 
+// ============================================================
+// CHECK IN
+// ============================================================
 async function doCheckin(cls, name) {
   if (!appData) return;
   if (!state.pwdVerified) return;
@@ -969,6 +1002,7 @@ async function doCheckin(cls, name) {
 
   const now = new Date().toISOString();
 
+  // Optimistic update
   if (!appData.attendance[active]) appData.attendance[active] = {mobile:{}, laptop:{}};
   if (!appData.attendance[active][cls]) appData.attendance[active][cls] = {};
   appData.attendance[active][cls][name] = {checked:true, time:now, ip:''};
@@ -976,9 +1010,11 @@ async function doCheckin(cls, name) {
   renderStudentLists();
   showSuccess(name, now);
 
+  // Sync to server
   setSyncStatus('🔄 저장 중...');
   const result = await postAction('checkin', {cls, session: active, name, time: now});
   if (!result.ok) {
+    // Already checked? undo
     appData.attendance[active][cls][name] = {checked:false};
     renderStudentLists();
     alert(result.msg || '오류가 발생했습니다.');
@@ -989,6 +1025,9 @@ async function doCheckin(cls, name) {
   }
 }
 
+// ============================================================
+// SUCCESS MODAL
+// ============================================================
 function showSuccess(name, iso) {
   const timeStr = formatTime(iso);
   document.getElementById('successName').textContent = `${name} 님`;
@@ -1001,6 +1040,9 @@ function closeSuccess() {
   document.getElementById('successModal').classList.remove('show');
 }
 
+// ============================================================
+// DASHBOARD
+// ============================================================
 function updateDashboard() {
   if (!appData) return;
   const active = String(appData.sessions.active);
@@ -1021,12 +1063,16 @@ function updateDashboard() {
   document.getElementById('dashL').textContent = countL;
   document.getElementById('dashTotal').textContent = countM + countL;
 
+  // Names list
   const names = [];
   if (att.mobile) Object.entries(att.mobile).forEach(([n,r]) => r.checked && names.push(`${n}(모)`));
   if (att.laptop) Object.entries(att.laptop).forEach(([n,r]) => r.checked && names.push(`${n}(노)`));
   document.getElementById('checkedNames').textContent = names.length ? `출석: ${names.join(', ')}` : '';
 }
 
+// ============================================================
+// ADMIN - TRIGGER (click title 7 times)
+// ============================================================
 let clickCount = 0, clickTimer = null;
 document.getElementById('headerTitle').addEventListener('click', () => {
   clickCount++;
@@ -1078,13 +1124,18 @@ function showAdminTab(tab) {
   if (tab === 'export') loadPrintPreview();
 }
 
+// ============================================================
+// ADMIN - LOAD DATA
+// ============================================================
 function loadAdminData() {
   if (!appData) return;
   const s = appData.sessions;
 
+  // Session select
   document.getElementById('activeSessionSelect').value = s.active;
   document.getElementById('editSessionSelect').value = s.active;
 
+  // Password table
   const tbody = document.getElementById('pwdTableBody');
   tbody.innerHTML = '';
   for (let i = 1; i <= 10; i++) {
@@ -1100,6 +1151,7 @@ function loadAdminData() {
     tbody.appendChild(tr);
   }
 
+  // Check-in status
   updateCheckinStatusUI();
   loadEditTable();
 }
@@ -1144,6 +1196,9 @@ async function savePasswords() {
   loadAdminData();
 }
 
+// ============================================================
+// ADMIN - EDIT TABLE
+// ============================================================
 function loadEditTable() {
   if (!appData) return;
   const session = document.getElementById('editSessionSelect').value;
@@ -1170,7 +1225,9 @@ function loadEditTable() {
   });
 }
 
-function editToggle(cls, session, name, checked) {}
+function editToggle(cls, session, name, checked) {
+  // Will be saved when user clicks Save
+}
 
 async function saveEdits() {
   const session = document.getElementById('editSessionSelect').value;
@@ -1185,16 +1242,21 @@ async function saveEdits() {
     updates.push({cls, session, name: s.name, checked, time});
   }
 
+  // Apply all updates
   for (const u of updates) {
     applyAction('admin_checkin_edit', u, appData);
   }
   setLocalData(appData);
 
+  // Sync to server
   await postAction('admin_update', {payload: {attendance: appData.attendance}});
   renderStudentLists();
   alert(`✅ ${session}회차 ${cls==='mobile'?'모바일반':'노트북반'} 출결이 저장되었습니다.`);
 }
 
+// ============================================================
+// ADMIN - STATS
+// ============================================================
 function loadStats(cls) {
   document.getElementById('statsTabM').className = 'admin-tab' + (cls==='mobile'?' active':'');
   document.getElementById('statsTabL').className = 'admin-tab' + (cls==='laptop'?' active':'');
@@ -1209,8 +1271,10 @@ function loadStats(cls) {
     return {name: s.name, company: s.company, count};
   });
 
+  // Sort by attendance count desc
   rows.sort((a,b) => b.count - a.count);
 
+  // Session summary
   let sessionHtml = '<table class="att-table" style="margin-bottom:16px;"><thead><tr><th>회차</th><th>모바일반</th><th>노트북반</th><th>합계</th></tr></thead><tbody>';
   for (let i = 1; i <= 10; i++) {
     const attM = appData.attendance[i]&&appData.attendance[i].mobile||{};
@@ -1239,12 +1303,16 @@ function showStatsView(cls) {
   loadStats(cls);
 }
 
+// ============================================================
+// EXPORT - EXCEL
+// ============================================================
 function exportExcel() {
   if (!window.XLSX) { alert('엑셀 라이브러리 로딩 중...'); return; }
   const wb = XLSX.utils.book_new();
 
   ['mobile','laptop'].forEach(cls => {
     const students = STUDENTS[cls];
+    const headers = ['번호','이름','소속'] + Array.from({length:10},(_,i)=>'').join('');
     const headerRow = ['번호','이름','소속',...Array.from({length:10},(_,i)=>`${i+1}회차`),'출석횟수','출석률(%)'];
     const rows = [headerRow];
     students.forEach((s, idx) => {
@@ -1265,10 +1333,12 @@ function exportExcel() {
       rows.push(row);
     });
     const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Column widths
     ws['!cols'] = [6,10,14,...Array(10).fill(9),8,8].map(w=>({wch:w}));
     XLSX.utils.book_append_sheet(wb, ws, cls==='mobile'?'모바일반':'노트북반');
   });
 
+  // Summary sheet
   const sumHeaders = ['회차','모바일반 출석','모바일반 총원','모바일반 출석률','노트북반 출석','노트북반 총원','노트북반 출석률'];
   const sumRows = [sumHeaders];
   for (let i = 1; i <= 10; i++) {
@@ -1277,7 +1347,10 @@ function exportExcel() {
     const cM = Object.values(attM).filter(r=>r.checked).length;
     const cL = Object.values(attL).filter(r=>r.checked).length;
     const tM = STUDENTS.mobile.length, tL = STUDENTS.laptop.length;
-    sumRows.push([`${i}회차`, cM, tM, Math.round(cM/tM*100)+'%', cL, tL, Math.round(cL/tL*100)+'%']);
+    sumRows.push([
+      `${i}회차`, cM, tM, Math.round(cM/tM*100)+'%',
+      cL, tL, Math.round(cL/tL*100)+'%'
+    ]);
   }
   const wsSum = XLSX.utils.aoa_to_sheet(sumRows);
   wsSum['!cols'] = [8,12,8,12,12,8,12].map(w=>({wch:w}));
@@ -1286,6 +1359,9 @@ function exportExcel() {
   XLSX.writeFile(wb, `부산기계공구조합_AI교육_출석부_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+// ============================================================
+// EXPORT - PRINT
+// ============================================================
 function loadPrintPreview() {
   document.getElementById('printPreview').innerHTML = buildPrintHtml(true);
 }
@@ -1339,6 +1415,9 @@ function printAttendance() {
   }, 1000);
 }
 
+// ============================================================
+// EXPORT - JSON BACKUP
+// ============================================================
 function exportJSON() {
   const blob = new Blob([JSON.stringify(appData, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
@@ -1370,6 +1449,9 @@ async function doImport(e) {
   }
 }
 
+// ============================================================
+// SETTINGS - PIN CHANGE
+// ============================================================
 function changePin() {
   const p1 = document.getElementById('newPin').value;
   const p2 = document.getElementById('newPin2').value;
@@ -1384,8 +1466,16 @@ function changePin() {
   document.getElementById('newPin2').value = '';
 }
 
-window.addEventListener('DOMContentLoaded', init);
+// ============================================================
+// START
+// ============================================================
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
+// ESC closes modals
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeSuccess();
@@ -1394,6 +1484,7 @@ document.addEventListener('keydown', e => {
 });
 </script>
 
+<!-- PRINT CSS additions -->
 <style>
 @media print {
   body { background: white !important; }
